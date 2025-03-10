@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "name": "foundry-kefka-sync-module",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "p-debounce": "^4.0.0",
+    "pusher-js": "^8.4.0"
+  },
+  "devDependencies": {
+    "@league-of-foundry-developers/foundry-vtt-types": "github:League-of-Foundry-Developers/foundry-vtt-types#v11.315.0-beta",
+    "vite": "6.0.1",
+    "vite-plugin-generate-file": "^0.2.0",
+    "vite-plugin-static-copy": "^2.3.0"
+  }
+}

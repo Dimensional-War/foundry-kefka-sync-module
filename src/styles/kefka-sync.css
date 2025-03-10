@@ -1,0 +1,120 @@
+.roll-flex {
+    display: flex;
+}
+
+.tooltip-part {
+    text-align: center;
+    font-weight: bold;
+}
+
+.dice-total .dice-rolls {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0;
+}
+
+.dice-total .roll {
+    display: flex;
+    margin: 0 0.3rem;
+}
+
+.dice-total .dice-rolls .result,
+.dice-total .dice-rolls .paren,
+.dice-total .dice-rolls .total {
+    position: relative;
+    line-height: 24px;
+    margin-right: 1px;
+    font-size: var(--font-size-16);
+    text-align: center;
+}
+
+.dice-total .dice-rolls .result {
+    min-width: 24px;
+    background-image: url("/icons/svg/d6-grey.svg");
+    background-repeat: no-repeat;
+    background-size: 24px 24px;
+    color: #000;
+}
+
+
+.dice-roll .roll-bold {
+    font-weight: bold;
+}
+
+.dice-roll {
+    --color-map-0: rgb(255, 255, 255);
+    --color-map-1: rgb(0, 0, 0);
+    --color-map-2: rgb(0, 0, 127);
+    --color-map-3: rgb(0, 147, 0);
+    --color-map-4: rgb(255, 0, 0);
+    --color-map-5: rgb(127, 0, 0);
+    --color-map-6: rgb(156, 0, 156);
+    --color-map-7: rgb(219, 110, 0);
+    --color-map-8: rgb(255, 255, 0);
+    --color-map-9: rgb(0, 252, 0);
+    --color-map-10: rgb(0, 147, 147);
+    --color-map-11: rgb(0, 255, 255);
+    --color-map-12: rgb(0, 0, 252);
+    --color-map-13: rgb(255, 0, 255);
+    --color-map-14: rgb(127, 127, 127);
+    --color-map-15: rgb(210, 210, 210);
+}
+
+.dice-roll .dice-total .roll.divine-fail {
+    --result-color: var(--color-map-4);
+    --paren-color: var(--color-map-4);
+    --total-color: var(--color-map-4);
+}
+
+.dice-roll .dice-total .roll.fail {
+    --result-color: var(--color-map-5);
+    --paren-color: var(--color-map-4);
+    --total-color: var(--color-map-7);
+}
+
+.dice-roll .dice-total .roll.crit {
+    --result-color: var(--color-map-12);
+    --paren-color: var(--color-map-12);
+    --total-color: var(--color-map-7);
+}
+
+.dice-roll .dice-total .roll.divine {
+    --result-color: var(--color-map-10);
+    --paren-color: var(--color-map-10);
+    --total-color: var(--color-map-10);
+}
+
+.dice-total .dice-rolls .paren {
+    color: var(--paren-color, var(--color-map-14));
+}
+
+.dice-total .dice-rolls .total {
+    color: var(--total-color, var(--color-map-7));
+}
+
+.dice-total .dice-rolls .result {
+    color: var(--result-color, var(--color-map-1));
+}
+
+
+
+.dice-roll .dice-tooltip .divine-fail {
+    --total-color: var(--color-map-4);
+}
+
+.dice-roll .dice-tooltip .fail {
+    --total-color: var(--color-map-5);
+}
+
+.dice-roll .dice-tooltip .crit {
+    --total-color: var(--color-map-12);
+}
+
+.dice-roll .dice-tooltip .divine {
+    --total-color: var(--color-map-10);
+}
+
+.dice-roll .dice-result .dice-tooltip {
+    color: var(--total-color, #000);
+}

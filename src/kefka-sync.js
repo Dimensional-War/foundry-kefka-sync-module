@@ -3,7 +3,7 @@ import debounce from "p-debounce";
 import { SkillDieTerm } from "./dice/SkillDieTerm";
 import { SkillRoll } from "./dice/SkillRoll";
 
-const initPusher = debounce(() => {
+const initPusher = () => {
   const endpoint =
     game.settings.get("kefka-sync", "pusherAuthorizationEndpoint") || "";
 
@@ -34,7 +34,8 @@ const initPusher = debounce(() => {
     pusher,
     rollDiceChannel
   };
-}, 600);
+};
+const initPusherDebounce = debounce(initPusher, 600);
 
 /**
  * Parse a chat string to identify the chat command (if any) which was used
@@ -84,7 +85,7 @@ Hooks.once("init", () => {
     type: String,
     default: "",
     onChange() {
-      initPusher();
+      initPusherDebounce();
     }
   });
   game.settings.register("kefka-sync", "pusherCluster", {
@@ -106,7 +107,7 @@ Hooks.once("init", () => {
     },
     default: "mt1",
     onChange() {
-      initPusher();
+      initPusherDebounce();
     }
   });
   game.settings.register("kefka-sync", "pusherAuthorizationEndpoint", {
@@ -116,7 +117,7 @@ Hooks.once("init", () => {
     hint: "The authorization endpoint for PusherJs",
     type: String,
     onChange() {
-      initPusher();
+      initPusherDebounce();
     }
   });
   game.settings.register("kefka-sync", "pusherUser", {
@@ -126,7 +127,7 @@ Hooks.once("init", () => {
     hint: "The authorization user name as defined in the phpBB WSAUTH config for PusherJs",
     type: String,
     onChange() {
-      initPusher();
+      initPusherDebounce();
     }
   });
   game.settings.register("kefka-sync", "pusherToken", {
@@ -136,7 +137,7 @@ Hooks.once("init", () => {
     hint: "The authorization token for the user as defined in the phpBB WSAUTH config for PusherJs",
     type: String,
     onChange() {
-      initPusher();
+      initPusherDebounce();
     }
   });
   game.settings.register("kefka-sync", "ircChannel", {
@@ -156,52 +157,54 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
-  await initPusher();
+  initPusher();
+  if (game.user.id === game.users.activeGM.id) {
+    game.kefkasync.rollDiceChannel.bind(
+      "client-roll-dice-result",
+      async data => {
+        let { reason, rollMode, die, baseRoll, roll, rolls, user, nick } = data;
+        if (game.user.id !== user && user !== "") {
+          return;
+        }
+        if (baseRoll === roll) {
+          baseRoll = undefined;
+        }
+        const rollReason = !!reason ? `[${reason}]` : "";
+        const botRolls = [];
+        for (const r of rolls) {
+          const [result, total] = r;
+          let bold = false;
+          let className = "roll";
+          if (result <= Math.ceil(die * 0.01)) {
+            bold = true;
+            className += " divine-fail";
+          } else if (result >= Math.floor(die * 0.99 + 1)) {
+            className += " divine";
+          } else if (result <= Math.floor(die * 0.05)) {
+            className += " fail";
+          } else if (result >= Math.floor(die * 0.95 + 1)) {
+            className += " crit";
+          }
+          className += ` ${bold ? "roll-bold" : ""}`;
+          botRolls.push({
+            className,
+            result,
+            total
+          });
+        }
+        const rollTotalClassName =
+          botRolls.find(({ className }) => {
+            return (
+              className.includes("divine-fail") ||
+              className.includes("divine") ||
+              className.includes("fail") ||
+              className.includes("crit")
+            );
+          })?.className || "";
 
-  game.kefkasync.rollDiceChannel.bind("client-roll-dice-result", async data => {
-    let { reason, rollMode, die, baseRoll, roll, rolls, user, nick } = data;
-    if (game.user.id !== user && user !== "") {
-      return;
-    }
-    if (baseRoll === roll) {
-      baseRoll = undefined;
-    }
-    const rollReason = !!reason ? `[${reason}]` : "";
-    const botRolls = [];
-    for (const r of rolls) {
-      const [result, total] = r;
-      let bold = false;
-      let className = "roll";
-      if (result <= Math.ceil(die * 0.01)) {
-        bold = true;
-        className += " divine-fail";
-      } else if (result >= Math.floor(die * 0.99 + 1)) {
-        className += " divine";
-      } else if (result <= Math.floor(die * 0.05)) {
-        className += " fail";
-      } else if (result >= Math.floor(die * 0.95 + 1)) {
-        className += " crit";
-      }
-      className += ` ${bold ? "roll-bold" : ""}`;
-      botRolls.push({
-        className,
-        result,
-        total
-      });
-    }
-    const rollTotalClassName =
-      botRolls.find(({ className }) => {
-        return (
-          className.includes("divine-fail") ||
-          className.includes("divine") ||
-          className.includes("fail") ||
-          className.includes("crit")
-        );
-      })?.className || "";
-
-    await ChatMessage.create(
-      {
-        content: `
+        await ChatMessage.create(
+          {
+            content: `
             <div class="dice-roll">
               <div class="dice-result">
                 <div class="dice-formula">
@@ -239,18 +242,20 @@ Hooks.once("ready", async () => {
               </div>
             </div>
               `,
-        user,
-        speaker: {
-          alias: nick
-        },
-        whisper:
-          rollMode === "gmroll"
-            ? [game.users.activeGM.id, !!user ? user : undefined]
-            : undefined
-      },
-      { rollMode }
+            user,
+            speaker: {
+              alias: nick
+            },
+            whisper:
+              rollMode === "gmroll"
+                ? [game.users.activeGM.id, !!user ? user : undefined]
+                : undefined
+          },
+          { rollMode }
+        );
+      }
     );
-  });
+  }
 });
 
 Hooks.once("diceSoNiceReady", () => {

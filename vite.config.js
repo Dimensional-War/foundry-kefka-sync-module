@@ -45,18 +45,11 @@ export default defineConfig({
         `modules/${ModuleData.id}/@vite\\/client`,
         `modules/${ModuleData.id}/@id`,
         `modules/${ModuleData.id}/.*?/env.mjs$`,
-        `modules/${ModuleData.id}/node_systems/.vite/.*`,
+        `modules/${ModuleData.id}/node_modules/.vite/.*`,
         `modules/${ModuleData.id}/src/`,
         `/${ModuleData.id}/`
       ].join("|") +
       ")"]: "http://localhost:30000",
-
-      // [`^/modules/${ModuleData.id}/src/`]: {
-      //   target: "http://localhost:30001",
-      //   rewrite: path => {
-      //     return path.replace(`/modules/${ModuleData.id}`, "");
-      //   }
-      // },
 
       // Enable socket.io from main Foundry server.
       "/socket.io": { target: "ws://localhost:30000", ws: true }
@@ -75,7 +68,7 @@ export default defineConfig({
         `modules/${ModuleData.id}/@vite\\/client`,
         `modules/${ModuleData.id}/@id`,
         `modules/${ModuleData.id}/.*?/env.mjs$`,
-        `modules/${ModuleData.id}/node_systems/.vite/.*`,
+        `modules/${ModuleData.id}/node_modules/.vite/.*`,
         `modules/${ModuleData.id}/src/`,
         `/${ModuleData.id}/`
       ].join("|") +

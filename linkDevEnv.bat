@@ -1,2 +1,2 @@
 @echo off
-mklink /J %localappdata%\FoundryVTT\Data\modules\kefka-sync %cd%\dist
+mklink /J %localappdata%\FoundryVTT\Data\modules\kefka-sync %cd%

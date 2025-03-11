@@ -163,9 +163,9 @@ Hooks.once("ready", async () => {
       "client-roll-dice-result",
       async data => {
         let { reason, rollMode, die, baseRoll, roll, rolls, user, nick } = data;
-        if (game.user.id !== user && user !== "") {
-          return;
-        }
+        // if (game.user.id !== user && user !== "") {
+        //   return;
+        // }
         if (baseRoll === roll) {
           baseRoll = undefined;
         }

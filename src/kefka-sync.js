@@ -3,7 +3,7 @@ import debounce from "p-debounce";
 import { SkillDieTerm } from "./dice/SkillDieTerm";
 import { SkillRoll } from "./dice/SkillRoll";
 
-const initPusher = () => {
+const initPusher = async () => {
   const endpoint =
     game.settings.get("kefka-sync", "pusherAuthorizationEndpoint") || "";
 
@@ -13,6 +13,8 @@ const initPusher = () => {
   ) {
     game.kefkasync.pusher.disconnect();
   }
+
+  game.kefkasync = {};
 
   const pusher = new Pusher(
     game.settings.get("kefka-sync", "pusherAppKey") || "",
@@ -30,12 +32,20 @@ const initPusher = () => {
 
   const rollDiceChannel = pusher.subscribe("private-foundry-roll-dice");
 
+  await new Promise(resolve => {
+    rollDiceChannel.bind("pusher:subscription_succeeded", () => {
+      resolve();
+    });
+  });
+
   game.kefkasync = {
     pusher,
     rollDiceChannel
   };
 };
-const initPusherDebounce = debounce(initPusher, 600);
+const initPusherDebounce = debounce(async () => {
+  await initPusher();
+}, 600);
 
 /**
  * Parse a chat string to identify the chat command (if any) which was used
@@ -158,14 +168,11 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", async () => {
   if (game.user.id === game.users.activeGM.id) {
-    initPusher();
+    await initPusher();
     game.kefkasync.rollDiceChannel.bind(
       "client-roll-dice-result",
       async data => {
         let { reason, rollMode, die, baseRoll, roll, rolls, user, nick } = data;
-        // if (game.user.id !== user && user !== "") {
-        //   return;
-        // }
         if (baseRoll === roll) {
           baseRoll = undefined;
         }

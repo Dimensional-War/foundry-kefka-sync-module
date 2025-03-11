@@ -157,8 +157,8 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
-  initPusher();
   if (game.user.id === game.users.activeGM.id) {
+    initPusher();
     game.kefkasync.rollDiceChannel.bind(
       "client-roll-dice-result",
       async data => {
@@ -265,8 +265,13 @@ Hooks.once("diceSoNiceReady", () => {
 Hooks.on("createChatMessage", async (...args) => {
   const [chatMessage, { rollMode }] = args;
   if (chatMessage.isRoll) {
-    await chatMessage.setFlag("kefka-sync", "diceRolling", true);
-    await chatMessage.setFlag("kefka-sync", "rollMode", rollMode);
+    if (
+      game.kefkasync.pusher.connection.state === "connected" &&
+      game.kefkasync.rollDiceChannel.subscribed
+    ) {
+      await chatMessage.setFlag("kefka-sync", "diceRolling", true);
+      await chatMessage.setFlag("kefka-sync", "rollMode", rollMode);
+    }
   }
 });
 

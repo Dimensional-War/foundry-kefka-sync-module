@@ -1,0 +1,20 @@
+{
+  "folders": [
+	{
+		"path": "."
+	},
+	{
+		"path": "../../systems/foundry-dimensionalwar-system"
+	},
+	{
+		"path": "C:/Users/Brendan/AppData/Roaming/mIRC/scripts/Kefka_scripts"
+	},
+	{
+		"path": "C:/Users/Brendan/AppData/Roaming/mIRC/scripts/DW_Foundry_Client"
+	},
+	{
+		"path": "C:/Users/Brendan/AppData/Roaming/mIRC/scripts/Pusher_WS_Client"
+	}
+],
+  "settings": {}
+}

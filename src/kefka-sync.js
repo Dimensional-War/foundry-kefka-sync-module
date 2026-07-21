@@ -304,64 +304,82 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
   if (message.getFlag?.("kefka-sync", "fromIrc")) return;
   if (!message.isRoll || !message.rolls?.length) return;
 
-  const dwRoll = message.rolls[0];
-  if (!dwRoll?.terms) return;
+  const allRollGroups = [];
 
-  const dieGroups = getDieGroups(dwRoll.terms);
-  if (!dieGroups.length) return;
+  for (const roll of message.rolls) {
+    if (!roll?.terms) continue;
 
-  const critMult = dwRoll.options?.critMult ?? 1;
-  const failMult = dwRoll.options?.failMult ?? 1;
+    const dieGroups = getDieGroups(roll.terms);
+    if (!dieGroups.length) continue;
 
-  const rollGroups = dieGroups
-    .filter(({ term }) => term.results?.length > 0)
-    .map(({ term, operator, bonus }) => {
-      const die = term.faces;
-      const isSkillZero =
-        term.constructor?.DENOMINATION === "s" && term.skillLevel === 0;
-      const { dice, overallClass, tooltipTotal } = buildDiceData(
-        term,
-        die,
-        operator,
-        bonus,
-        isSkillZero,
-        critMult,
-        failMult
-      );
-      const dieFlavor = term.options?.flavor || term.options?.flavour || "";
+    const critMult = roll.options?.critMult ?? 1;
+    const failMult = roll.options?.failMult ?? 1;
+    const rollFlavor = roll.options?.flavor || roll.flavor || "";
 
-      // Per-group formula lines: s-notation (skill die) and d-notation (actual die)
-      const num = term.number ?? 1;
-      const bonusStr = bonus > 0 ? `${operator}${bonus}` : "";
-      const sFml =
-        (term.constructor?.DENOMINATION === "s" && term.skillLevel !== undefined
-          ? `${num}s${term.skillLevel}`
-          : `${num}d${term.faces}`) + bonusStr;
-      const dFml = `${num}d${term.faces}${bonusStr}`;
-      const formulaLines = sFml !== dFml ? [sFml, dFml] : [sFml];
+    const rollGroups = dieGroups
+      .filter(({ term }) => term.results?.length > 0)
+      .map(({ term, operator, bonus }) => {
+        const die = term.faces;
+        const isSkillZero =
+          term.constructor?.DENOMINATION === "s" && term.skillLevel === 0;
+        const { dice, overallClass, tooltipTotal } = buildDiceData(
+          term,
+          die,
+          operator,
+          bonus,
+          isSkillZero,
+          critMult,
+          failMult
+        );
+        const dieFlavor = term.options?.flavor || term.options?.flavour || "";
 
-      return {
-        formulaLines,
-        dice,
-        overallClass,
-        tooltipTotal,
-        reason: dieFlavor || null
-      };
-    });
+        const num = term.number ?? 1;
+        const bonusStr = bonus > 0 ? `${operator}${bonus}` : "";
+        const sFml =
+          (term.constructor?.DENOMINATION === "s" &&
+          term.skillLevel !== undefined
+            ? `${num}s${term.skillLevel}`
+            : `${num}d${term.faces}`) + bonusStr;
+        const dFml = `${num}d${term.faces}${bonusStr}`;
+        const formulaLines = sFml !== dFml ? [sFml, dFml] : [sFml];
 
-  if (!rollGroups.length) return;
+        return {
+          formulaLines,
+          dice,
+          overallClass,
+          tooltipTotal,
+          reason: dieFlavor || null
+        };
+      });
 
-  // Fall back to message-level flavor when no die carries an inline flavor
-  if (!rollGroups.some(g => g.reason) && message.flavor) {
-    rollGroups[0].reason = message.flavor;
+    // Per-roll flavor fallback: use roll.options.flavor (set by DwRoll.propagateFlavor)
+    if (rollGroups.length && !rollGroups.some(g => g.reason) && rollFlavor) {
+      rollGroups[0].reason = rollFlavor;
+    }
+
+    allRollGroups.push(...rollGroups);
+  }
+
+  if (!allRollGroups.length) return;
+
+  // Final message-level fallback for single-roll messages with no inline flavor
+  if (!allRollGroups.some(g => g.reason) && message.flavor) {
+    allRollGroups[0].reason = message.flavor;
   }
 
   const templateFn = Handlebars.partials[KEFKA_ROLL_TEMPLATE];
   if (!templateFn) return;
 
-  const rendered = templateFn({ rollGroups });
-  const diceRollEl = html.querySelector(".dice-roll");
-  if (diceRollEl) diceRollEl.outerHTML = rendered;
+  const rendered = templateFn({ rollGroups: allRollGroups });
+  const diceRollEls = html.querySelectorAll(".dice-roll");
+  if (!diceRollEls.length) return;
+
+  // Replace the first native block with the combined custom card, then
+  // remove any remaining native blocks (one per roll in a multi-roll message).
+  diceRollEls[0].outerHTML = rendered;
+  html.querySelectorAll(".dice-roll").forEach((el, i) => {
+    if (i > 0) el.remove();
+  });
 });
 
 Hooks.on("createChatMessage", async (...args) => {
@@ -382,45 +400,57 @@ Hooks.on("createChatMessage", async (...args) => {
   const ircGmNickname = game.settings.get("kefka-sync", "ircGmNickname") || "";
   if (!ircChannel || !ircGmNickname) return;
 
-  const dwRoll = chatMessage.rolls?.[0];
-  if (!dwRoll) return;
+  if (!chatMessage.rolls?.length) return;
 
-  const allGroups = getDieGroups(dwRoll.terms);
-  if (!allGroups.length) return;
+  // Collect groups across all rolls in the message (a macro can produce a
+  // ChatMessage with multiple rolls — e.g. `/r 1s2+30` and `/r 1d3+2` sent
+  // together will land in chatMessage.rolls[0] and chatMessage.rolls[1]).
+  const groupData = [];
+  for (const roll of chatMessage.rolls) {
+    if (!roll?.terms) continue;
+    const rollGroups = getDieGroups(roll.terms);
+    if (!rollGroups.length) continue;
 
-  const critMult = dwRoll.options?.critMult ?? 1;
-  const failMult = dwRoll.options?.failMult ?? 1;
+    const critMult = roll.options?.critMult ?? 1;
+    const failMult = roll.options?.failMult ?? 1;
+    const rollFlavor = roll.options?.flavor || roll.flavor || "";
 
-  const groupData = allGroups
-    .filter(({ term }) => term.results?.length > 0)
-    .map(({ term, operator, bonus }) => {
-      const die = term.faces;
-      const diceNum = term.number ?? 1;
-      const isSkillZero =
-        term.constructor?.DENOMINATION === "s" && term.skillLevel === 0;
-      const rollType =
-        term.constructor?.DENOMINATION === "s" ? "skill" : "basic";
-      const { ircTokens } = buildDiceData(
-        term,
-        die,
-        operator,
-        bonus,
-        isSkillZero,
-        critMult,
-        failMult
-      );
-      const dieFlavor = term.options?.flavor || term.options?.flavour || "";
-      const bonusStr = bonus > 0 ? String(bonus) : "";
-      return {
-        die,
-        diceNum,
-        rollType,
-        operator,
-        bonus: bonusStr,
-        ircTokens,
-        reason: dieFlavor
-      };
-    });
+    const processed = rollGroups
+      .filter(({ term }) => term.results?.length > 0)
+      .map(({ term, operator, bonus }) => {
+        const die = term.faces;
+        const diceNum = term.number ?? 1;
+        const isSkillZero =
+          term.constructor?.DENOMINATION === "s" && term.skillLevel === 0;
+        const { ircTokens } = buildDiceData(
+          term,
+          die,
+          operator,
+          bonus,
+          isSkillZero,
+          critMult,
+          failMult
+        );
+        const dieFlavor = term.options?.flavor || term.options?.flavour || "";
+        const bonusStr = bonus > 0 ? String(bonus) : "";
+        return {
+          die,
+          diceNum,
+          operator,
+          bonus: bonusStr,
+          ircTokens,
+          reason: dieFlavor
+        };
+      });
+
+    // Per-roll flavor fallback: when no die carries inline flavor, use the
+    // roll-level flavor (from `# text` in the chat command) for the first group.
+    if (processed.length && !processed.some(g => g.reason) && rollFlavor) {
+      processed[0].reason = rollFlavor;
+    }
+
+    groupData.push(...processed);
+  }
 
   if (!groupData.length) return;
 

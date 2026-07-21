@@ -101,7 +101,7 @@ export default defineConfig({
   },
   // Necessary when using the dev server for top-level await usage inside of TRL.
   optimizeDeps: {
-    esbuildOptions: {
+    rolldownOptions: {
       target: "es2022"
     }
   },
@@ -124,7 +124,9 @@ export default defineConfig({
       }
     ]),
     viteStaticCopy({
-      targets: [{ src: "src/styles", dest: "" }]
+      targets: [
+        { src: "src/styles", dest: "styles", rename: { stripBase: true } }
+      ]
     })
   ]
 });

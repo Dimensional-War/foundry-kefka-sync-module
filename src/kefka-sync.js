@@ -282,7 +282,7 @@ Hooks.once("ready", async () => {
             speaker: { alias: nick },
             flags: { "kefka-sync": { fromIrc: true } },
             whisper:
-              rollMode === "gmroll"
+              rollMode === foundry.CONST.DICE_ROLL_MODES.PRIVATE
                 ? [game.users.activeGM.id, !!user ? user : undefined]
                 : undefined
           },
@@ -383,7 +383,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 });
 
 Hooks.on("createChatMessage", async (...args) => {
-  const [chatMessage, { rollMode }] = args;
+  const [chatMessage] = args;
   if (!chatMessage.isRoll) return;
   // Skip messages that originated from IRC to prevent echo loops
   if (chatMessage.getFlag("kefka-sync", "fromIrc")) return;
@@ -459,7 +459,37 @@ Hooks.on("createChatMessage", async (...args) => {
     groupData[0].reason = chatMessage.flavor;
   }
 
-  const gmRoll = ["gmroll", "blindroll", "selfroll"].includes(rollMode);
+  let rollMode = foundry.CONST.DICE_ROLL_MODES.PUBLIC;
+
+  if (chatMessage.blind === true) {
+    // If the message is blind, treat it as a blind roll (only the GM sees it).
+    // This is a workaround for the fact that Foundry doesn't set rollMode to
+    // "blind" for blind rolls, even though the GM sees them as blind.
+    rollMode = foundry.CONST.DICE_ROLL_MODES.BLIND;
+  } else if (chatMessage.whisper?.length) {
+    // If the message is whispered to the GM, treat it as a private roll.
+    // This is a workaround for the fact that Foundry doesn't set rollMode to
+    // "private" for whispered rolls, even though the GM sees them as private.
+    if (
+      chatMessage.whisper.includes(game.users.activeGM.id) &&
+      chatMessage.whisper.length > 1
+    ) {
+      rollMode = foundry.CONST.DICE_ROLL_MODES.PRIVATE;
+    } else if (
+      chatMessage.whisper.includes(game.users.current.id) &&
+      chatMessage.whisper.length === 1
+    ) {
+      rollMode = foundry.CONST.DICE_ROLL_MODES.SELF;
+    }
+  } else if (chatMessage.whisper?.length === 0 && chatMessage.blind === false) {
+    rollMode = foundry.CONST.DICE_ROLL_MODES.PUBLIC;
+  }
+
+  const gmRoll = [
+    foundry.CONST.DICE_ROLL_MODES.PRIVATE,
+    foundry.CONST.DICE_ROLL_MODES.BLIND,
+    foundry.CONST.DICE_ROLL_MODES.SELF
+  ].includes(rollMode);
 
   game.kefkasync.rollDiceChannel.trigger("client-foundry-roll-echo", {
     nick: chatMessage.speaker?.alias || game.user.name,

@@ -300,6 +300,7 @@ Hooks.once("diceSoNiceReady", () => {
 // Apply the roll template to Foundry-originated roll messages so they
 // share the same card format as IRC results (per-die coloration, s-notation, etc.).
 Hooks.on("renderChatMessageHTML", (message, html) => {
+  if (!game.user.isGM) return;
   // IRC results already have custom content; skip them
   if (message.getFlag?.("kefka-sync", "fromIrc")) return;
   if (!message.isRoll || !message.rolls?.length) return;
@@ -383,6 +384,7 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
 });
 
 Hooks.on("createChatMessage", async (...args) => {
+  if (!game.user.isGM) return;
   const [chatMessage] = args;
   if (!chatMessage.isRoll) return;
   // Skip messages that originated from IRC to prevent echo loops

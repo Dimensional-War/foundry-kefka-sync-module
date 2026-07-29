@@ -46,7 +46,7 @@ function buildDiceData(
   const dice = [];
   const tokenParts = [];
 
-  for (const r of dieTerm.results.filter(r => r.active)) {
+  for (const r of dieTerm.results) {
     const raw = r.result;
     const total = isSkillZero
       ? raw
@@ -54,19 +54,26 @@ function buildDiceData(
         ? raw - bonus
         : raw + bonus;
     const cls = classifyRollResult(raw, die, critMult, failMult);
-    dice.push({ result: raw, total, cssClass: cls.cssClass });
+    const strikethrough = !r.active;
+
+    const cssClass = [cls.cssClass, strikethrough ? "discarded" : ""]
+      .filter(Boolean)
+      .join(" ");
+
+    dice.push({ result: raw, total, cssClass });
     tokenParts.push(
-      `${total}:${raw}:${cls.rCol}:${cls.pCol}:${cls.tCol}:${cls.bold}`
+      `${total}:${raw}:${cls.rCol}:${cls.pCol}:${cls.tCol}:${cls.bold}:${strikethrough ? "$true" : "$false"}`
     );
   }
 
-  const specialDie = dice.find(d => d.cssClass);
+  const specialDie = dice.find(
+    d => d.cssClass && !d.cssClass.includes("discarded")
+  );
   const overallClass = specialDie?.cssClass
     ? `roll ${specialDie.cssClass}`
     : "";
-  const tooltipTotal = dice.reduce((s, d) => s + d.total, 0);
 
-  return { dice, ircTokens: tokenParts.join(" "), overallClass, tooltipTotal };
+  return { dice, ircTokens: tokenParts.join(" "), overallClass };
 }
 
 /**
@@ -335,13 +342,14 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
         const dieFlavor = term.options?.flavor || term.options?.flavour || "";
 
         const num = term.number ?? 1;
+        const modStr = (term.modifiers || []).join("");
         const bonusStr = bonus > 0 ? `${operator}${bonus}` : "";
         const sFml =
           (term.constructor?.DENOMINATION === "s" &&
           term.skillLevel !== undefined
-            ? `${num}s${term.skillLevel}`
-            : `${num}d${term.faces}`) + bonusStr;
-        const dFml = `${num}d${term.faces}${bonusStr}`;
+            ? `${num}s${term.skillLevel}${modStr}`
+            : `${num}d${term.faces}${modStr}`) + bonusStr;
+        const dFml = `${num}d${term.faces}${modStr}${bonusStr}`;
         const formulaLines = sFml !== dFml ? [sFml, dFml] : [sFml];
 
         return {
@@ -501,6 +509,8 @@ Hooks.on("createChatMessage", async (...args) => {
     target: !gmRoll ? ircChannel : ircGmNickname,
     rolls: groupData.map(g => g.ircTokens),
     reasons: groupData.map(g => g.reason),
-    formulas: groupData.map(g => `${g.diceNum}d${g.die}${g.operator}${g.bonus}`)
+    formulas: groupData.map(
+      g => `${g.diceNum}d${g.die}${g.modifiers}${g.operator}${g.bonus}`
+    )
   });
 });

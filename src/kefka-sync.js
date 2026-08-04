@@ -18,15 +18,19 @@ function classifyRollResult(raw, die, critMult = 1, failMult = 1) {
       rCol: 4,
       pCol: 4,
       tCol: 4,
-      bold: "\x02"
+      // NOTE: bold is encoded as "1"/"0" (never an empty string) because the
+      // IRC-side mIRC $gettok() parser collapses empty tokens between
+      // consecutive delimiters, which would shift every field after this
+      // one (e.g. the active/strike field). See Kefka_scripts mirroring code.
+      bold: "1"
     };
   if (raw >= divineMin)
-    return { cssClass: "divine", rCol: 10, pCol: 10, tCol: 10, bold: "" };
+    return { cssClass: "divine", rCol: 10, pCol: 10, tCol: 10, bold: "0" };
   if (raw <= botchMax)
-    return { cssClass: "fail", rCol: 5, pCol: 4, tCol: 7, bold: "" };
+    return { cssClass: "fail", rCol: 5, pCol: 4, tCol: 7, bold: "0" };
   if (raw >= critMin)
-    return { cssClass: "crit", rCol: 12, pCol: 12, tCol: 7, bold: "" };
-  return { cssClass: "", rCol: 14, pCol: 14, tCol: 7, bold: "" };
+    return { cssClass: "crit", rCol: 12, pCol: 12, tCol: 7, bold: "0" };
+  return { cssClass: "", rCol: 14, pCol: 14, tCol: 7, bold: "0" };
 }
 
 /**
@@ -61,8 +65,13 @@ function buildDiceData(
       .join(" ");
 
     dice.push({ result: raw, total, cssClass });
+    // Active field is encoded as "1"/"0" (matching Kefka's own %active
+    // convention: 1 = kept, 0 = dropped/strikethrough) rather than
+    // "$true"/"$false", both to stay consistent with the mIRC-side format
+    // and because mIRC's $gettok() truthiness checks treat any non-empty
+    // string (including the literal text "$false") as true.
     tokenParts.push(
-      `${total}:${raw}:${cls.rCol}:${cls.pCol}:${cls.tCol}:${cls.bold}:${strikethrough ? "$true" : "$false"}`
+      `${total}:${raw}:${cls.rCol}:${cls.pCol}:${cls.tCol}:${cls.bold}:${r.active ? "1" : "0"}`
     );
   }
 

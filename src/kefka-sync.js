@@ -452,11 +452,13 @@ Hooks.on("createChatMessage", async (...args) => {
         );
         const dieFlavor = term.options?.flavor || term.options?.flavour || "";
         const bonusStr = bonus > 0 ? String(bonus) : "";
+        const modifiers = (term.modifiers || []).join("");
         return {
           die,
           diceNum,
           operator,
           bonus: bonusStr,
+          modifiers,
           ircTokens,
           reason: dieFlavor
         };

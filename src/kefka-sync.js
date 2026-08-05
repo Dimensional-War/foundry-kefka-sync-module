@@ -519,7 +519,8 @@ Hooks.on("createChatMessage", async (...args) => {
     gmRoll,
     target: !gmRoll ? ircChannel : ircGmNickname,
     rolls: groupData.map(g => g.ircTokens),
-    reasons: groupData.map(g => g.reason),
+    // chatMessage.flavor is HTML-sanitized by Foundry, which escapes "->" to "-&gt;"; restore it verbatim for IRC.
+    reasons: groupData.map(g => g.reason?.replace(/-&gt;/g, "->") ?? g.reason),
     formulas: groupData.map(
       g => `${g.diceNum}d${g.die}${g.modifiers}${g.operator}${g.bonus}`
     )

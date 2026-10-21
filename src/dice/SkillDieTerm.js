@@ -52,8 +52,8 @@ export class SkillDieTerm extends DiceTerm {
     }
 
     // Get the term arguments
-    number = Number.isNumeric(number) ? parseInt(number) : 1;
-    let faces = Number.isNumeric(denomination) ? parseInt(denomination) : null;
+    number = foundry.utils.isNumeric(number) ? parseInt(number) : 1;
+    let faces = foundry.utils.isNumeric(denomination) ? parseInt(denomination) : null;
 
     if (denomination === "s") {
       let skillDie = 40;

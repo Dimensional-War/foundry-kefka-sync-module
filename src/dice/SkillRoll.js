@@ -1,5 +1,7 @@
 import { SkillDieTerm } from "./SkillDieTerm";
 
+const { RollTerm, NumericTerm, StringTerm } = foundry.dice.terms;
+
 export class SkillRoll extends Roll {
   /**
    * Classify a remaining string term into a recognized RollTerm class

@@ -33,6 +33,34 @@ function classifyRollResult(raw, die, critMult = 1, failMult = 1) {
   return { cssClass: "", rCol: 14, pCol: 14, tCol: 7, bold: "0" };
 }
 
+function inferActiveDice(rolls, ...formulas) {
+  const active = rolls.map(() => true);
+  const formula = formulas.find(value => typeof value === "string" && value);
+  const keepMatch = formula?.match(/\d*[ds]\d+(kh|kl)(\d*)/i);
+  if (!keepMatch) return active;
+
+  const keepType = keepMatch[1].toLowerCase();
+  const groupSize = Number(keepMatch[2]) || 2;
+  for (let groupStart = 0; groupStart < rolls.length; groupStart += groupSize) {
+    const groupEnd = Math.min(groupStart + groupSize, rolls.length);
+    let keptIndex = groupStart;
+    for (let index = groupStart + 1; index < groupEnd; index++) {
+      const candidate = rolls[index][0];
+      const kept = rolls[keptIndex][0];
+      if (
+        (keepType === "kl" && candidate < kept) ||
+        (keepType === "kh" && candidate >= kept)
+      ) {
+        keptIndex = index;
+      }
+    }
+    for (let index = groupStart; index < groupEnd; index++) {
+      active[index] = index === keptIndex;
+    }
+  }
+  return active;
+}
+
 /**
  * Build unified dice display data from an evaluated DiceTerm.
  * Returns template-ready dice array, pre-formatted IRC token string,
@@ -251,12 +279,26 @@ Hooks.once("ready", async () => {
           baseRoll = undefined;
         }
         // Classify each die result and build template + IRC token data
-        const dice = rolls.map(([result, total]) => ({
-          result,
-          total,
-          cssClass: classifyRollResult(result, die).cssClass
-        }));
-        const specialDie = dice.find(d => d.cssClass);
+        const inferredActive = inferActiveDice(rolls, roll, baseRoll);
+        const dice = rolls.map(([result, total, active], index) => {
+          const isActive =
+            active === undefined
+              ? inferredActive[index]
+              : active === true || active === 1 || active === "1";
+          return {
+            result,
+            total,
+            cssClass: [
+              classifyRollResult(result, die).cssClass,
+              isActive ? "" : "discarded"
+            ]
+              .filter(Boolean)
+              .join(" ")
+          };
+        });
+        const specialDie = dice.find(
+          d => d.cssClass && !d.cssClass.includes("discarded")
+        );
         const overallClass = specialDie?.cssClass
           ? `roll ${specialDie.cssClass}`
           : "";
@@ -269,7 +311,7 @@ Hooks.once("ready", async () => {
         let rollMeta = null;
         try {
           rollMeta = await Roll.create(roll);
-          await rollMeta.evaluate({ async: true });
+          await rollMeta.evaluate();
         } catch (e) {
           console.warn(
             "kefka-sync | Could not build roll metadata for collapsibility:",
@@ -278,7 +320,8 @@ Hooks.once("ready", async () => {
           rollMeta = null;
         }
 
-        const content = await renderTemplate(KEFKA_ROLL_TEMPLATE, {
+        const content =
+          await foundry.applications.handlebars.renderTemplate(KEFKA_ROLL_TEMPLATE, {
           rollGroups: [
             {
               formulaLines: baseRoll ? [baseRoll, roll] : [roll],
@@ -290,20 +333,19 @@ Hooks.once("ready", async () => {
           ]
         });
 
-        await ChatMessage.create(
-          {
-            content,
-            rolls: rollMeta ? [rollMeta] : undefined,
-            user,
-            speaker: { alias: nick },
-            flags: { "kefka-sync": { fromIrc: true } },
-            whisper:
-              rollMode === foundry.CONST.DICE_ROLL_MODES.PRIVATE
-                ? [game.users.activeGM.id, !!user ? user : undefined]
-                : undefined
-          },
-          { rollMode }
-        );
+        const messageData = {
+          content,
+          rolls: rollMeta ? [rollMeta] : undefined,
+          author: user,
+          speaker: { alias: nick },
+          flags: { "kefka-sync": { fromIrc: true } },
+          whisper:
+            rollMode === foundry.CONST.DICE_ROLL_MODES.PRIVATE
+              ? [game.users.activeGM.id, !!user ? user : undefined]
+              : undefined
+        };
+        ChatMessage.applyRollMode(messageData, rollMode);
+        await ChatMessage.create(messageData);
       }
     );
   }
